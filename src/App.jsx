@@ -294,15 +294,26 @@ export default function App() {
               justifyContent: "space-between",
             }}
           >
-            <div style={{ fontWeight: 800, fontSize: 16 }}>
-              Portfolio Total (unsold):
-              <span style={{ marginLeft: 8 }}>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: 22,
+                display: "flex",
+                alignItems: "baseline",
+                gap: 12,
+              }}
+            >
+              <div style={{ marginRight: 8 }}>Portfolio Total (unsold):</div>
+              <div style={{ fontSize: 22, fontWeight: 900 }}>
                 {formatCurrency(portfolioTotalMon)} MON
-              </span>
+              </div>
               {Number.isFinite(portfolioTotalUsd) ? (
-                <span className="usd-inline" style={{ marginLeft: 12 }}>
+                <div
+                  className="usd-inline"
+                  style={{ marginLeft: 8, fontSize: 18 }}
+                >
                   {formatUSD(portfolioTotalUsd)}
-                </span>
+                </div>
               ) : null}
             </div>
           </div>
@@ -451,15 +462,17 @@ export default function App() {
                     </tr>
                   );
                 })}
-                <tr>
-                  <td style={{ fontWeight: 600 }}>Totals</td>
+                <tr style={{ fontSize: 16, fontWeight: 700 }}>
+                  <td style={{ fontWeight: 700, fontSize: 16 }}>Totals</td>
                   <td>
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 8 }}
                     >
-                      <div>{formatCurrency(buyTotalMon)} MON</div>
+                      <div style={{ fontSize: 16, fontWeight: 800 }}>
+                        {formatCurrency(buyTotalMon)} MON
+                      </div>
                       {Number.isFinite(buyTotalUsd) ? (
-                        <div className="usd-inline">
+                        <div className="usd-inline" style={{ fontSize: 14 }}>
                           {formatUSD(buyTotalUsd)}
                         </div>
                       ) : null}
@@ -469,18 +482,20 @@ export default function App() {
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 8 }}
                     >
-                      <div>{formatCurrency(sellTotalMon)} MON</div>
+                      <div style={{ fontSize: 16, fontWeight: 800 }}>
+                        {formatCurrency(sellTotalMon)} MON
+                      </div>
                       {Number.isFinite(sellTotalUsd) ? (
-                        <div className="usd-inline">
+                        <div className="usd-inline" style={{ fontSize: 14 }}>
                           {formatUSD(sellTotalUsd)}
                         </div>
                       ) : null}
                     </div>
                   </td>
-                  <td style={{ fontWeight: 600 }}>
+                  <td style={{ fontWeight: 700, fontSize: 16 }}>
                     {Number.isFinite(amountTotal) ? amountTotal : "-"}
                   </td>
-                  <td style={{ fontWeight: 600 }}>
+                  <td style={{ fontWeight: 700, fontSize: 16 }}>
                     <div
                       style={{ display: "flex", alignItems: "center", gap: 8 }}
                     >
@@ -492,11 +507,12 @@ export default function App() {
                             ? "pnl-positive"
                             : "pnl-negative"
                         }
+                        style={{ fontSize: 16, fontWeight: 800 }}
                       >
                         {formatCurrency(pnlTotalMon)}
                       </div>
                       {Number.isFinite(pnlTotalUsd) ? (
-                        <div className="usd-inline">
+                        <div className="usd-inline" style={{ fontSize: 14 }}>
                           {formatUSD(pnlTotalUsd)}
                         </div>
                       ) : null}
