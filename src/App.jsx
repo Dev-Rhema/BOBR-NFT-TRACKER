@@ -94,6 +94,64 @@ export default function App() {
     }
   }
 
+  // compute total value of unsold NFTs (in MON and USD)
+  const portfolioTotalMon = rows.reduce((sum, row) => {
+    const sellVal = row.sell;
+    if (sellVal !== "" && Number.isFinite(parseFloat(sellVal))) return sum; // already sold
+    const buy = parseFloat(row.buy);
+    if (!Number.isFinite(buy) || buy <= 0) return sum;
+    let qty = parseFloat(row.amount);
+    if (!Number.isFinite(qty) || qty === 0) qty = 1;
+    return sum + buy * qty;
+  }, 0);
+
+  const portfolioTotalUsd = Number.isFinite(coinPriceUSD)
+    ? portfolioTotalMon * coinPriceUSD
+    : NaN;
+
+  // column totals (MON)
+  const buyTotalMon = rows.reduce((s, row) => {
+    const buy = parseFloat(row.buy);
+    if (!Number.isFinite(buy) || buy <= 0) return s;
+    let qty = parseFloat(row.amount);
+    if (!Number.isFinite(qty) || qty === 0) qty = 1;
+    return s + buy * qty;
+  }, 0);
+
+  const sellTotalMon = rows.reduce((s, row) => {
+    const sell = parseFloat(row.sell);
+    if (!Number.isFinite(sell)) return s;
+    let qty = parseFloat(row.amount);
+    if (!Number.isFinite(qty) || qty === 0) qty = 1;
+    return s + sell * qty;
+  }, 0);
+
+  const amountTotal = rows.reduce((s, row) => {
+    let qty = parseFloat(row.amount);
+    if (!Number.isFinite(qty) || qty === 0) qty = 1;
+    return s + qty;
+  }, 0);
+
+  // total PnL for rows that have both buy and sell
+  const pnlTotalMon = rows.reduce((s, row) => {
+    const buy = parseFloat(row.buy);
+    const sell = parseFloat(row.sell);
+    if (!Number.isFinite(buy) || !Number.isFinite(sell)) return s;
+    let qty = parseFloat(row.amount);
+    if (!Number.isFinite(qty) || qty === 0) qty = 1;
+    return s + (sell - buy) * qty;
+  }, 0);
+
+  const buyTotalUsd = Number.isFinite(coinPriceUSD)
+    ? buyTotalMon * coinPriceUSD
+    : NaN;
+  const sellTotalUsd = Number.isFinite(coinPriceUSD)
+    ? sellTotalMon * coinPriceUSD
+    : NaN;
+  const pnlTotalUsd = Number.isFinite(coinPriceUSD)
+    ? pnlTotalMon * coinPriceUSD
+    : NaN;
+
   async function fetchCoinPriceUSD() {
     const symbol = "mon"; // token symbol to resolve
     setPriceLoading(true);
@@ -225,6 +283,27 @@ export default function App() {
                 : priceLoading
                 ? ""
                 : "Updated"}
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginBottom: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: 16 }}>
+              Portfolio Total (unsold):
+              <span style={{ marginLeft: 8 }}>
+                {formatCurrency(portfolioTotalMon)} MON
+              </span>
+              {Number.isFinite(portfolioTotalUsd) ? (
+                <span className="usd-inline" style={{ marginLeft: 12 }}>
+                  {formatUSD(portfolioTotalUsd)}
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -372,6 +451,59 @@ export default function App() {
                     </tr>
                   );
                 })}
+                <tr>
+                  <td style={{ fontWeight: 600 }}>Totals</td>
+                  <td>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <div>{formatCurrency(buyTotalMon)} MON</div>
+                      {Number.isFinite(buyTotalUsd) ? (
+                        <div className="usd-inline">
+                          {formatUSD(buyTotalUsd)}
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <div>{formatCurrency(sellTotalMon)} MON</div>
+                      {Number.isFinite(sellTotalUsd) ? (
+                        <div className="usd-inline">
+                          {formatUSD(sellTotalUsd)}
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>
+                    {Number.isFinite(amountTotal) ? amountTotal : "-"}
+                  </td>
+                  <td style={{ fontWeight: 600 }}>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <div
+                        className={
+                          pnlTotalMon === 0
+                            ? "pnl-empty"
+                            : pnlTotalMon > 0
+                            ? "pnl-positive"
+                            : "pnl-negative"
+                        }
+                      >
+                        {formatCurrency(pnlTotalMon)}
+                      </div>
+                      {Number.isFinite(pnlTotalUsd) ? (
+                        <div className="usd-inline">
+                          {formatUSD(pnlTotalUsd)}
+                        </div>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td />
+                </tr>
               </tbody>
             </table>
           </div>
