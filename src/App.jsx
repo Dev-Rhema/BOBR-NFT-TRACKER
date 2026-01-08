@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
+import qr from "./assets/qr.png";
 
 function formatPercent(v) {
   if (!Number.isFinite(v)) return "-";
@@ -213,6 +214,19 @@ export default function App() {
   }, []);
 
   // Error boundary to show runtime errors instead of a blank page
+  const SUPPORT_ADDRESS = "0xe3095e6A987DE1F7cC6f207e3215A215bb16a75F";
+  const [copied, setCopied] = useState(false);
+
+  async function copyAddress() {
+    try {
+      await navigator.clipboard.writeText(SUPPORT_ADDRESS);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      // ignore clipboard errors
+    }
+  }
+
   class ErrorBoundary extends React.Component {
     constructor(props) {
       super(props);
@@ -522,6 +536,27 @@ export default function App() {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+      <div className="support-mini">
+        <div className="support-card">
+          <img src={qr} alt="Support QR" className="support-qr" />
+          <div className="support-text">
+            <div className="support-title">Support Us</div>
+            <div className="support-address">
+              {SUPPORT_ADDRESS}
+              <button className="support-copy" onClick={copyAddress}>
+                (click to copy)
+              </button>
+            </div>
+            {copied ? (
+              <div className="copy-feedback">Copied!</div>
+            ) : (
+              <div className="support-note">
+                Scan the QR or copy the address to support development
+              </div>
+            )}
           </div>
         </div>
       </div>
