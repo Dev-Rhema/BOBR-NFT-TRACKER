@@ -21,6 +21,7 @@ export default function App() {
   const [coinPriceUSD, setCoinPriceUSD] = useState(null);
   const [priceLoading, setPriceLoading] = useState(false);
   const [priceError, setPriceError] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const [rows, setRows] = useState(() => {
     try {
@@ -207,11 +208,7 @@ export default function App() {
     }
   }, [rows]);
 
-  // debug mount
-  useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log("App mounted");
-  }, []);
+  // debug mount removed
 
   // Error boundary to show runtime errors instead of a blank page
   const SUPPORT_ADDRESS = "0xe3095e6A987DE1F7cC6f207e3215A215bb16a75F";
@@ -253,313 +250,514 @@ export default function App() {
       return this.props.children;
     }
   }
+  const downloadCSV = () => {
+    try {
+      const headers = [
+        "Name",
+        "Buy (MON)",
+        "Sell (MON)",
+        "Amount",
+        "PnL (MON)",
+        "PnL %",
+      ];
+      const lines = [headers.join(",")];
+      rows.forEach((row) => {
+        const pnlObj = computePnl(row.buy, row.sell, row.amount);
+        const pnlTotal =
+          pnlObj && Number.isFinite(pnlObj.total) ? pnlObj.total : "";
+        const pnlPercent =
+          pnlObj && Number.isFinite(pnlObj.percent)
+            ? pnlObj.percent.toFixed(2)
+            : "";
+        const safeName = (row.name || "").replace(/"/g, '""');
+        const fields = [
+          `"${safeName}"`,
+          row.buy,
+          row.sell,
+          row.amount,
+          pnlTotal,
+          pnlPercent,
+        ];
+        lines.push(fields.join(","));
+      });
+      // totals row
+      lines.push(
+        [
+          "Totals",
+          buyTotalMon || "",
+          sellTotalMon || "",
+          amountTotal || "",
+          pnlTotalMon || "",
+          "",
+        ].join(",")
+      );
+
+      const csv = lines.join("\r\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "nft-trades.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("CSV download failed", e);
+    }
+  };
+
+  const downloadPDF = async () => {
+    try {
+      const buildRowHtml = (r) => {
+        const pnlObj = computePnl(r.buy, r.sell, r.amount);
+        const pnlTotal =
+          pnlObj && Number.isFinite(pnlObj.total) ? pnlObj.total : "";
+        const pnlPercent =
+          pnlObj && Number.isFinite(pnlObj.percent)
+            ? `${pnlObj.percent.toFixed(2)}%`
+            : "";
+        return `
+          <tr>
+            <td>${(r.name || "").replace(/</g, "&lt;")}</td>
+            <td>${r.buy || ""}</td>
+            <td>${r.sell || ""}</td>
+            <td>${r.amount || ""}</td>
+            <td>${pnlTotal}</td>
+            <td>${pnlPercent}</td>
+          </tr>`;
+      };
+
+      const rowsHtml = rows.map(buildRowHtml).join("");
+      const totalsHtml = `
+        <tr style="font-weight:700">
+          <td>Totals</td>
+          <td>${buyTotalMon || ""}</td>
+          <td>${sellTotalMon || ""}</td>
+          <td>${amountTotal || ""}</td>
+          <td>${pnlTotalMon || ""}</td>
+          <td></td>
+        </tr>`;
+
+      const html = `<!doctype html><html><head><title>NFT Trades</title><meta charset="utf-8"><style>table{width:100%;border-collapse:collapse;font-family:Arial,Helvetica,sans-serif}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background:#f3f4f6}</style></head><body><h2>NFT Trades</h2><table><thead><tr><th>Name</th><th>Buy (MON)</th><th>Sell (MON)</th><th>Amount</th><th>PnL (MON)</th><th>PnL %</th></tr></thead><tbody>${rowsHtml}${totalsHtml}</tbody></table></body></html>`;
+
+      // Use a hidden iframe to avoid opening a new tab (prevents parent from appearing to "load")
+      const iframe = document.createElement("iframe");
+      iframe.style.position = "fixed";
+      iframe.style.right = "0";
+      iframe.style.bottom = "0";
+      iframe.style.width = "0";
+      iframe.style.height = "0";
+      iframe.style.border = "0";
+      document.body.appendChild(iframe);
+
+      if ("srcdoc" in iframe) {
+        iframe.srcdoc = html;
+      } else {
+        const idoc = iframe.contentDocument || iframe.contentWindow.document;
+        idoc.open();
+        idoc.write(html);
+        idoc.close();
+      }
+
+      await new Promise((res) => {
+        // sometimes onload doesn't fire for srcdoc; resolve after a short delay as well
+        const t = setTimeout(res, 800);
+        iframe.onload = () => {
+          clearTimeout(t);
+          res();
+        };
+      });
+
+      const win = iframe.contentWindow || iframe;
+      try {
+        win.focus && win.focus();
+        win.print && win.print();
+      } catch (err) {
+        // ignore print errors
+      }
+
+      setTimeout(() => {
+        try {
+          document.body.removeChild(iframe);
+        } catch (e) {}
+      }, 600);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error("PDF export failed", e);
+    }
+  };
+
   return (
-    <div className="app-bg">
-      <div className="mft-container">
-        <div className="mft-card">
-          <div className="mft-header" style={{ marginBottom: 12 }}>
-            <div>
-              <div className="mft-title">NFT PnL Tracker</div>
-              <div className="mft-subtitle">
-                Add trades and see % profit / loss per item
+    <ErrorBoundary>
+      <div className="app-bg">
+        <div className="mft-container">
+          <div className="mft-card">
+            <div className="mft-header" style={{ marginBottom: 12 }}>
+              <div>
+                <div className="mft-title">NFT PnL Tracker</div>
+                <div className="mft-subtitle">
+                  Add trades and see % profit / loss per item
+                </div>
+              </div>
+              <div>
+                <button
+                  className="btn btn-primary"
+                  onClick={addRow}
+                  style={{ marginLeft: 8 }}
+                >
+                  Add Item
+                </button>
+                <div style={{ display: "inline-block", position: "relative" }}>
+                  <button
+                    className="btn"
+                    onClick={() => setExportOpen((v) => !v)}
+                    style={{ marginLeft: 8 }}
+                  >
+                    Export
+                  </button>
+                  {exportOpen ? (
+                    <div
+                      style={{
+                        position: "absolute",
+                        right: 0,
+                        marginTop: 8,
+                        background: "white",
+                        border: "1px solid #e5e7eb",
+                        padding: 8,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                        zIndex: 40,
+                        display: "flex",
+                        gap: 8,
+                      }}
+                    >
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          downloadCSV();
+                          setExportOpen(false);
+                        }}
+                      >
+                        CSV
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          downloadPDF();
+                          setExportOpen(false);
+                        }}
+                      >
+                        PDF
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
               </div>
             </div>
-            <div>
-              <button
-                className="btn btn-primary"
-                onClick={addRow}
-                style={{ marginLeft: 8 }}
-              >
-                Add Item
-              </button>
-            </div>
-          </div>
 
-          <div
-            style={{
-              marginBottom: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div className="mon-price">
-              MON:{" "}
-              {priceLoading
-                ? "Loading..."
-                : coinPriceUSD
-                ? formatUSD(coinPriceUSD)
-                : "Price unavailable"}
-            </div>
-            <div style={{ color: "var(--muted)", fontSize: 12 }}>
-              {priceError
-                ? `Error: ${priceError}`
-                : priceLoading
-                ? ""
-                : "Updated"}
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginBottom: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
             <div
               style={{
-                fontWeight: 800,
-                fontSize: 22,
+                marginBottom: 12,
                 display: "flex",
-                alignItems: "baseline",
-                gap: 12,
+                alignItems: "center",
+                justifyContent: "space-between",
               }}
             >
-              <div style={{ marginRight: 8 }}>Portfolio Total (unsold):</div>
-              <div style={{ fontSize: 22, fontWeight: 900 }}>
-                {formatCurrency(portfolioTotalMon)} MON
+              <div className="mon-price">
+                MON:{" "}
+                {priceLoading
+                  ? "Loading..."
+                  : coinPriceUSD
+                  ? formatUSD(coinPriceUSD)
+                  : "Price unavailable"}
               </div>
-              {Number.isFinite(portfolioTotalUsd) ? (
-                <div
-                  className="usd-inline"
-                  style={{ marginLeft: 8, fontSize: 18 }}
-                >
-                  {formatUSD(portfolioTotalUsd)}
-                </div>
-              ) : null}
+              <div style={{ color: "var(--muted)", fontSize: 12 }}>
+                {priceError
+                  ? `Error: ${priceError}`
+                  : priceLoading
+                  ? ""
+                  : "Updated"}
+              </div>
             </div>
-          </div>
 
-          <div className="table-wrap">
-            <table
-              className="mft-table"
-              style={{ width: "100%", borderCollapse: "collapse" }}
+            <div
+              style={{
+                marginBottom: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
             >
-              <thead>
-                <tr>
-                  <th style={{ textAlign: "left" }}>Name</th>
-                  <th>Buy Price (MON)</th>
-                  <th>Sell Price (MON)</th>
-                  <th>Amount</th>
-                  <th>PnL</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const pnlObj = computePnl(row.buy, row.sell, row.amount);
-                  const buyVal = parseFloat(row.buy);
-                  const sellVal = parseFloat(row.sell);
-                  const buyUsd =
-                    Number.isFinite(coinPriceUSD) && Number.isFinite(buyVal)
-                      ? coinPriceUSD * buyVal
-                      : NaN;
-                  const sellUsd =
-                    Number.isFinite(coinPriceUSD) && Number.isFinite(sellVal)
-                      ? coinPriceUSD * sellVal
-                      : NaN;
-                  const pnlUsd =
-                    pnlObj &&
-                    Number.isFinite(coinPriceUSD) &&
-                    Number.isFinite(pnlObj.total)
-                      ? pnlObj.total * coinPriceUSD
-                      : NaN;
-                  return (
-                    <tr key={row.id}>
-                      <td>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) =>
-                            updateRow(row.id, "name", e.target.value)
-                          }
-                          placeholder="NFT name"
-                          style={{ width: "100%" }}
-                        />
-                      </td>
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            alignItems: "center",
-                          }}
-                        >
-                          <div className="usd-inline">{formatUSD(buyUsd)}</div>
-                          <input
-                            type="number"
-                            step="any"
-                            value={row.buy}
-                            onChange={(e) =>
-                              updateRow(row.id, "buy", e.target.value)
-                            }
-                            placeholder="0.00"
-                            style={{ width: 120 }}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 8,
-                            alignItems: "center",
-                          }}
-                        >
-                          <div className="usd-inline">{formatUSD(sellUsd)}</div>
-                          <input
-                            type="number"
-                            step="any"
-                            value={row.sell}
-                            onChange={(e) =>
-                              updateRow(row.id, "sell", e.target.value)
-                            }
-                            placeholder="leave empty if unsold"
-                            style={{ width: 140 }}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="any"
-                          value={row.amount}
-                          onChange={(e) =>
-                            updateRow(row.id, "amount", e.target.value)
-                          }
-                          placeholder="qty"
-                          style={{ width: 90 }}
-                        />
-                      </td>
-                      <td
-                        className={
-                          pnlObj === null
-                            ? "pnl-empty"
-                            : pnlObj.total >= 0
-                            ? "pnl-positive"
-                            : "pnl-negative"
-                        }
-                      >
-                        {pnlObj === null ? (
-                          "-"
-                        ) : (
-                          <>
-                            <span>
-                              {formatCurrency(pnlObj.total)}
-                              {Number.isFinite(pnlUsd) ? (
-                                <span
-                                  className="usd-inline"
-                                  style={{ marginLeft: 8 }}
-                                >
-                                  {formatUSD(pnlUsd)}
-                                </span>
-                              ) : null}
-                            </span>
-                            <div
-                              style={{ fontSize: 12, color: "var(--muted)" }}
-                            >
-                              {formatPercent(pnlObj.percent)}
-                            </div>
-                          </>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="btn btn-ghost"
-                          onClick={() => removeRow(row.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr style={{ fontSize: 16, fontWeight: 700 }}>
-                  <td style={{ fontWeight: 700, fontSize: 16 }}>Totals</td>
-                  <td>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <div style={{ fontSize: 16, fontWeight: 800 }}>
-                        {formatCurrency(buyTotalMon)} MON
-                      </div>
-                      {Number.isFinite(buyTotalUsd) ? (
-                        <div className="usd-inline" style={{ fontSize: 14 }}>
-                          {formatUSD(buyTotalUsd)}
-                        </div>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <div style={{ fontSize: 16, fontWeight: 800 }}>
-                        {formatCurrency(sellTotalMon)} MON
-                      </div>
-                      {Number.isFinite(sellTotalUsd) ? (
-                        <div className="usd-inline" style={{ fontSize: 14 }}>
-                          {formatUSD(sellTotalUsd)}
-                        </div>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td style={{ fontWeight: 700, fontSize: 16 }}>
-                    {Number.isFinite(amountTotal) ? amountTotal : "-"}
-                  </td>
-                  <td style={{ fontWeight: 700, fontSize: 16 }}>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <div
-                        className={
-                          pnlTotalMon === 0
-                            ? "pnl-empty"
-                            : pnlTotalMon > 0
-                            ? "pnl-positive"
-                            : "pnl-negative"
-                        }
-                        style={{ fontSize: 16, fontWeight: 800 }}
-                      >
-                        {formatCurrency(pnlTotalMon)}
-                      </div>
-                      {Number.isFinite(pnlTotalUsd) ? (
-                        <div className="usd-inline" style={{ fontSize: 14 }}>
-                          {formatUSD(pnlTotalUsd)}
-                        </div>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td />
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div className="support-mini">
-        <div className="support-card">
-          <img src={qr} alt="Support QR" className="support-qr" />
-          <div className="support-text">
-            <div className="support-title">Support Us</div>
-            <div className="support-address">
-              {SUPPORT_ADDRESS}
-              <button className="support-copy" onClick={copyAddress}>
-                (click to copy)
-              </button>
-            </div>
-            {copied ? (
-              <div className="copy-feedback">Copied!</div>
-            ) : (
-              <div className="support-note">
-                Scan the QR or copy the address to support development
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: 22,
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 12,
+                }}
+              >
+                <div style={{ marginRight: 8 }}>Portfolio Total (unsold):</div>
+                <div style={{ fontSize: 22, fontWeight: 900 }}>
+                  {formatCurrency(portfolioTotalMon)} MON
+                </div>
+                {Number.isFinite(portfolioTotalUsd) ? (
+                  <div
+                    className="usd-inline"
+                    style={{ marginLeft: 8, fontSize: 18 }}
+                  >
+                    {formatUSD(portfolioTotalUsd)}
+                  </div>
+                ) : null}
               </div>
-            )}
+            </div>
+
+            <div className="table-wrap">
+              <table
+                className="mft-table"
+                style={{ width: "100%", borderCollapse: "collapse" }}
+              >
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left" }}>Name</th>
+                    <th>Buy Price (MON)</th>
+                    <th>Sell Price (MON)</th>
+                    <th>Amount</th>
+                    <th>PnL</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const pnlObj = computePnl(row.buy, row.sell, row.amount);
+                    const buyVal = parseFloat(row.buy);
+                    const sellVal = parseFloat(row.sell);
+                    const buyUsd =
+                      Number.isFinite(coinPriceUSD) && Number.isFinite(buyVal)
+                        ? coinPriceUSD * buyVal
+                        : NaN;
+                    const sellUsd =
+                      Number.isFinite(coinPriceUSD) && Number.isFinite(sellVal)
+                        ? coinPriceUSD * sellVal
+                        : NaN;
+                    const pnlUsd =
+                      pnlObj &&
+                      Number.isFinite(coinPriceUSD) &&
+                      Number.isFinite(pnlObj.total)
+                        ? pnlObj.total * coinPriceUSD
+                        : NaN;
+                    return (
+                      <tr key={row.id}>
+                        <td>
+                          <input
+                            type="text"
+                            value={row.name}
+                            onChange={(e) =>
+                              updateRow(row.id, "name", e.target.value)
+                            }
+                            placeholder="NFT name"
+                            style={{ width: "100%" }}
+                          />
+                        </td>
+                        <td>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              alignItems: "center",
+                            }}
+                          >
+                            <div className="usd-inline">
+                              {formatUSD(buyUsd)}
+                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              value={row.buy}
+                              onChange={(e) =>
+                                updateRow(row.id, "buy", e.target.value)
+                              }
+                              placeholder="0.00"
+                              style={{ width: 120 }}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              alignItems: "center",
+                            }}
+                          >
+                            <div className="usd-inline">
+                              {formatUSD(sellUsd)}
+                            </div>
+                            <input
+                              type="number"
+                              step="any"
+                              value={row.sell}
+                              onChange={(e) =>
+                                updateRow(row.id, "sell", e.target.value)
+                              }
+                              placeholder="leave empty if unsold"
+                              style={{ width: 140 }}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            step="any"
+                            value={row.amount}
+                            onChange={(e) =>
+                              updateRow(row.id, "amount", e.target.value)
+                            }
+                            placeholder="qty"
+                            style={{ width: 90 }}
+                          />
+                        </td>
+                        <td
+                          className={
+                            pnlObj === null
+                              ? "pnl-empty"
+                              : pnlObj.total >= 0
+                              ? "pnl-positive"
+                              : "pnl-negative"
+                          }
+                        >
+                          {pnlObj === null ? (
+                            "-"
+                          ) : (
+                            <>
+                              <span>
+                                {formatCurrency(pnlObj.total)}
+                                {Number.isFinite(pnlUsd) ? (
+                                  <span
+                                    className="usd-inline"
+                                    style={{ marginLeft: 8 }}
+                                  >
+                                    {formatUSD(pnlUsd)}
+                                  </span>
+                                ) : null}
+                              </span>
+                              <div
+                                style={{ fontSize: 12, color: "var(--muted)" }}
+                              >
+                                {formatPercent(pnlObj.percent)}
+                              </div>
+                            </>
+                          )}
+                        </td>
+                        <td>
+                          <button
+                            className="btn btn-ghost"
+                            onClick={() => removeRow(row.id)}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr style={{ fontSize: 16, fontWeight: 700 }}>
+                    <td style={{ fontWeight: 700, fontSize: 16 }}>Totals</td>
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ fontSize: 16, fontWeight: 800 }}>
+                          {formatCurrency(buyTotalMon)} MON
+                        </div>
+                        {Number.isFinite(buyTotalUsd) ? (
+                          <div className="usd-inline" style={{ fontSize: 14 }}>
+                            {formatUSD(buyTotalUsd)}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <div style={{ fontSize: 16, fontWeight: 800 }}>
+                          {formatCurrency(sellTotalMon)} MON
+                        </div>
+                        {Number.isFinite(sellTotalUsd) ? (
+                          <div className="usd-inline" style={{ fontSize: 14 }}>
+                            {formatUSD(sellTotalUsd)}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td style={{ fontWeight: 700, fontSize: 16 }}>
+                      {Number.isFinite(amountTotal) ? amountTotal : "-"}
+                    </td>
+                    <td style={{ fontWeight: 700, fontSize: 16 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <div
+                          className={
+                            pnlTotalMon === 0
+                              ? "pnl-empty"
+                              : pnlTotalMon > 0
+                              ? "pnl-positive"
+                              : "pnl-negative"
+                          }
+                          style={{ fontSize: 16, fontWeight: 800 }}
+                        >
+                          {formatCurrency(pnlTotalMon)}
+                        </div>
+                        {Number.isFinite(pnlTotalUsd) ? (
+                          <div className="usd-inline" style={{ fontSize: 14 }}>
+                            {formatUSD(pnlTotalUsd)}
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div className="support-mini">
+          <div className="support-card">
+            <img src={qr} alt="Support QR" className="support-qr" />
+            <div className="support-text">
+              <div className="support-title">Support Us</div>
+              <div className="support-address">
+                {SUPPORT_ADDRESS}
+                <button className="support-copy" onClick={copyAddress}>
+                  (click to copy)
+                </button>
+              </div>
+              {copied ? (
+                <div className="copy-feedback">Copied!</div>
+              ) : (
+                <div className="support-note">
+                  Scan the QR or copy the address to support development
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

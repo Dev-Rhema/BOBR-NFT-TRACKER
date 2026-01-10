@@ -28,6 +28,7 @@ body,
 .app-bg {
   width: 100vw;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   margin: auto;
@@ -36,6 +37,8 @@ body,
 
 .mft-container {
   width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 .mft-card {
@@ -192,6 +195,107 @@ input:focus {
   }
 }
 
+/* Larger tablet breakpoint tweaks */
+@media (max-width: 1024px) {
+  .app-bg {
+    padding: 0 24px;
+  }
+  .mft-card {
+    padding: 16px;
+  }
+  .mft-title {
+    font-size: 1.4rem;
+  }
+  .mft-subtitle {
+    font-size: 0.92rem;
+  }
+  .mft-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mft-header > div + div {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+  }
+}
+
+/* Mobile-specific rules */
+@media (max-width: 600px) {
+  .app-bg {
+    padding: 0 12px;
+  }
+  .mft-card {
+    padding: 12px;
+  }
+  .mft-title {
+    font-size: 1.2rem;
+  }
+  .mft-subtitle {
+    font-size: 0.85rem;
+  }
+  /* Make header actions stack and buttons full width */
+  .mft-header > div:last-child {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mft-header .btn {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+  /* Allow table to scroll horizontally but try to fit better */
+  .table-wrap .mft-table {
+    min-width: 600px;
+  }
+  /* Inputs should expand on small screens (override inline widths) */
+  input[type="text"],
+  input[type="number"] {
+    width: 100% !important;
+  }
+  /* Support card stretches full width under the table */
+  .support-card {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .support-address {
+    font-size: 0.78rem;
+  }
+  /* Reduce font sizes further for very small screens */
+  .mft-title {
+    font-size: 1.05rem;
+  }
+  .mft-subtitle {
+    font-size: 0.78rem;
+  }
+  .mft-table thead th {
+    font-size: 0.72rem;
+  }
+  .mft-table td,
+  .mft-table th {
+    font-size: 0.78rem;
+    padding: 8px 6px;
+  }
+  .btn {
+    font-size: 0.85rem;
+    padding: 0.4rem 0.7rem;
+  }
+  .usd-inline {
+    font-size: 0.75rem;
+    padding: 4px 6px;
+    min-width: 64px;
+  }
+  input[type="text"],
+  input[type="number"] {
+    font-size: 0.9rem;
+    padding: 6px 8px;
+  }
+  .support-title {
+    font-size: 0.88rem;
+  }
+}
+
 /* Make tables horizontally scrollable on small screens instead of squeezing */
 .table-wrap {
   width: 100%;
@@ -212,13 +316,7 @@ input:focus {
   margin-top: 18px;
   padding-bottom: 24px;
 }
-.support-mini {
-  position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
-  z-index: 60;
-}
+/* support-mini now flows naturally after the table */
 .support-card {
   display: inline-flex;
   align-items: center;
