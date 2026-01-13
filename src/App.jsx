@@ -360,10 +360,10 @@ export default function App() {
                 Add trades and see % profit / loss per item
               </p>
             </div>
-            <div className="flex gap-2 mt-3 sm:mt-0">
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto gap-2 mt-3 sm:mt-0 items-stretch sm:items-center sm:justify-end">
               <button
                 onClick={addRow}
-                className="px-4 py-2 rounded-lg font-semibold text-white transition-all active:translate-y-px"
+                className="w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-white transition-all active:translate-y-px"
                 style={{
                   background: "linear-gradient(90deg, #6d28d9, #8b5cf6)",
                   boxShadow: "0 6px 20px rgba(139, 92, 246, 0.14)",
@@ -371,10 +371,10 @@ export default function App() {
               >
                 Add Item
               </button>
-              <div className="relative">
+              <div className="relative w-full sm:w-auto">
                 <button
                   onClick={() => setExportOpen((v) => !v)}
-                  className="px-4 py-2 rounded-lg font-semibold text-slate-300 border transition-all active:translate-y-px"
+                  className="w-full sm:w-auto px-4 py-2 rounded-lg font-semibold text-slate-300 border transition-all active:translate-y-px flex items-center justify-center"
                   style={{
                     background: "transparent",
                     borderColor: "rgba(255, 255, 255, 0.04)",
@@ -383,13 +383,13 @@ export default function App() {
                   Export
                 </button>
                 {exportOpen && (
-                  <div className="absolute right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg p-2 shadow-lg z-40 flex gap-2">
+                  <div className="sm:absolute right-0 mt-2 bg-slate-900 border border-slate-700 rounded-lg p-2 shadow-lg z-40 flex gap-2 flex-col sm:flex-row w-full sm:w-auto">
                     <button
                       onClick={() => {
                         downloadCSV();
                         setExportOpen(false);
                       }}
-                      className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[13px] sm:text-sm"
+                      className="w-full sm:w-auto px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[13px] sm:text-sm"
                     >
                       CSV
                     </button>
@@ -398,7 +398,7 @@ export default function App() {
                         downloadPDF();
                         setExportOpen(false);
                       }}
-                      className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[13px] sm:text-sm"
+                      className="w-full sm:w-auto px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[13px] sm:text-sm"
                     >
                       PDF
                     </button>
@@ -430,11 +430,11 @@ export default function App() {
             <div className="text-[13px] sm:text-sm font-semibold text-slate-400">
               Portfolio Total (unsold):
             </div>
-            <div className="text-2xl font-black text-slate-100">
+            <div className="text-lg sm:text-2xl font-bold sm:font-black text-slate-100">
               {formatCurrency(portfolioTotalMon)} MON
             </div>
             {Number.isFinite(portfolioTotalUsd) && (
-              <div className="text-lg font-bold text-slate-400">
+              <div className="text-sm sm:text-lg font-normal sm:font-bold text-slate-400">
                 {formatUSD(portfolioTotalUsd)}
               </div>
             )}
@@ -632,7 +632,7 @@ export default function App() {
                     borderColor: "rgba(255, 255, 255, 0.1)",
                   }}
                 >
-                  <td className="p-3">Totals</td>
+                  <td className="p-3 text-white">Totals</td>
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <div className="font-extrabold text-slate-100">
